@@ -30,7 +30,7 @@ builder.Services.AddSwaggerGen(options =>
 // builder.Services.AddHttpClient("fallback", client => client.BaseAddress = new Uri("http://payment-processor-fallback:8080"));
 builder.Services.AddHttpClient();
 
-builder.Services.AddScoped<IHealthCheckService>(provider =>
+builder.Services.AddSingleton<IHealthCheckService>(provider =>
 {
     var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
     var processorUrls = new Dictionary<string, string>
