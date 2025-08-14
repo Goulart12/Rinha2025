@@ -7,12 +7,14 @@ namespace RinhaDeBackend2025.Services;
 public class HealthCheckService : IHealthCheckService
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDictionary<string, string> _processorUrls;
     private DateTime _lastTimeCheck = DateTime.MinValue;
     private bool? _healthy = null;
 
-    public HealthCheckService(IHttpClientFactory httpClientFactory)
+    public HealthCheckService(IHttpClientFactory httpClientFactory, IDictionary<string, string> processorUrls)
     {
         _httpClientFactory = httpClientFactory;
+        _processorUrls = processorUrls;
     }
 
 
@@ -20,24 +22,31 @@ public class HealthCheckService : IHealthCheckService
     {
         var now = DateTime.UtcNow;
         
-        if ((now -  _lastTimeCheck).TotalSeconds >= 5 )
+        if ((now -  _lastTimeCheck).TotalSeconds >= 5)
         {
             var client = _httpClientFactory.CreateClient();
-            var response = await client.GetAsync($"{clientName}/payments/service-health");
-
-            if (response.IsSuccessStatusCode)
+            if (_processorUrls.TryGetValue(clientName, out var baseUrl))
             {
-                var content = await response.Content.ReadAsStringAsync();
-                var healthResponse = JsonSerializer.Deserialize<HealthCheckModel>(content, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                });
+                var response = await client.GetAsync($"{baseUrl}/payments/service-health");
 
-                _healthy = healthResponse is { Failing: false };
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var healthResponse = JsonSerializer.Deserialize<HealthCheckModel>(content, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                    });
+
+                    _healthy = healthResponse is { Failing: false };
+                }
+                else
+                {
+                    _healthy ??= true;
+                }
             }
             else
             {
-                _healthy ??= true;
+                _healthy = false;
             }
             
             _lastTimeCheck = now;

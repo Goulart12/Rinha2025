@@ -30,14 +30,28 @@ builder.Services.AddSwaggerGen(options =>
 // builder.Services.AddHttpClient("fallback", client => client.BaseAddress = new Uri("http://payment-processor-fallback:8080"));
 builder.Services.AddHttpClient();
 
-builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-builder.Services.AddScoped<IPaymentSummaryService, PaymentSummaryService>();
+builder.Services.AddScoped<IHealthCheckService>(provider =>
+{
+    var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+    var processorUrls = new Dictionary<string, string>
+    {
+        { "default", defaultProcessor },
+        { "fallback", fallbackProcessor }
+    };
+    return new HealthCheckService(httpClientFactory, processorUrls);
+});
+builder.Services.AddScoped<IPaymentSummaryService>(provider =>
+{
+    var redis = provider.GetRequiredService<IConnectionMultiplexer>();
+    var logger = provider.GetRequiredService<ILogger<PaymentSummaryService>>();
+    return new PaymentSummaryService(redis, logger);
+});
 
 var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
 redisConfig.AbortOnConnectFail = false;
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfig));
 
-builder.Services.AddSingleton<IPaymentService>(provider =>
+builder.Services.AddScoped<IPaymentService>(provider =>
 {
     var summaryService = provider.GetRequiredService<IPaymentSummaryService>();
     var healthCheckService = provider.GetRequiredService<IHealthCheckService>();
@@ -46,8 +60,32 @@ builder.Services.AddSingleton<IPaymentService>(provider =>
     return new PaymentService(defaultProcessor, fallbackProcessor, summaryService, healthCheckService, logger, httpClientFactory);
 });
 
+
+
 var app = builder.Build();
-app.UseHttpsRedirection();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/", async (IHealthCheckService healthCheck) =>
+{
+    var defaultProccessorStatus = await healthCheck.IsHealthy("default");
+    var fallbackProccessorStatus = await healthCheck.IsHealthy("fallback");
+    return new
+    {
+        message = "o pai ta on",
+        database = new
+        {
+            defaultProccessorStatus,
+            fallbackProccessorStatus
+        }
+    };
+});
+
 app.Run();
