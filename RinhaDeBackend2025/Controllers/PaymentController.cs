@@ -1,51 +1,57 @@
 using Microsoft.AspNetCore.Mvc;
 using RinhaDeBackend2025.Models;
-using RinhaDeBackend2025.Services;
 using RinhaDeBackend2025.Services.Interfaces;
 
 namespace RinhaDeBackend2025.Controllers;
 
 public class PaymentController : ControllerBase
 {
-    private readonly IPaymentService _paymentService;
+    private readonly IBackgroundTaskQueue<PaymentModel> _taskQueue;
     private readonly IPaymentSummaryService _paymentSummaryService;
+    private readonly ILogger<PaymentController> _logger;
 
-    public PaymentController(IPaymentService paymentService, IPaymentSummaryService paymentSummaryService)
+    public PaymentController(
+        IBackgroundTaskQueue<PaymentModel> taskQueue,
+        IPaymentSummaryService paymentSummaryService,
+        ILogger<PaymentController> logger)
     {
-        _paymentService = paymentService;
+        _taskQueue = taskQueue;
         _paymentSummaryService = paymentSummaryService;
+        _logger = logger;
     }
 
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [Route("/payments")]
-    public async Task<IActionResult> Payment([FromBody] PaymentModel model)
+    [Route("payments")]
+    public IActionResult Payment([FromBody] PaymentModel model)
     {
-        var result = await _paymentService.ProcessPaymentAsync(model);
-
-        if (result)
-        {
-            return Ok(new { message = "payment processed successfully"});
-        }
-            
-        return StatusCode(502, new { message = "processor failed" });
+        _taskQueue.Enqueue(model);
+        return Accepted(new { message = "payment received and queued for processing" });
     }
 
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Route("/payments-summary")]
+    [Route("payments-summary")]
     public async Task<IActionResult> PaymentSummary([FromQuery] DateTime from, [FromQuery] DateTime to)
     {
         var summary = await _paymentSummaryService.GetSummaryAsync(from, to);
-        
-        var summaries = summary
-            .GroupBy(e => e.Processor)
-            .ToDictionary(f => f.Key, g => new
+
+        var result = new Dictionary<string, object>
+        {
+            ["default"] = new { totalRequests = 0, totalAmount = 0.0m },
+            ["fallback"] = new { totalRequests = 0, totalAmount = 0.0m }
+        };
+
+        var groupedByProcessor = summary.GroupBy(e => e.Processor);
+
+        foreach (var group in groupedByProcessor)
+        {
+            result[group.Key] = new
             {
-                totalRequests = g.Count(),
-                totalAmount = g.Sum(x => x.Amount)
-            });
-        
-        return Ok(summaries);
+                totalRequests = group.Count(),
+                totalAmount = group.Sum(x => x.Amount)
+            };
+        }
+
+        return Ok(result);
     }
 }

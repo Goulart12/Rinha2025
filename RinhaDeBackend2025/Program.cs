@@ -26,18 +26,33 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<SecurityRequirementsOperationFilter>();
 });
 
-// builder.Services.AddHttpClient("default", client => client.BaseAddress = new Uri("http://payment-processor-default:8080"));                
-// builder.Services.AddHttpClient("fallback", client => client.BaseAddress = new Uri("http://payment-processor-fallback:8080"));
 builder.Services.AddHttpClient();
 
-builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-builder.Services.AddScoped<IPaymentSummaryService, PaymentSummaryService>();
+builder.Services.AddSingleton(typeof(IBackgroundTaskQueue<>), typeof(BackgroundTaskQueue<>));
+builder.Services.AddHostedService<QueuedHostedService>();
+
+builder.Services.AddSingleton<IHealthCheckService>(provider =>
+{
+    var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+    var processorUrls = new Dictionary<string, string>
+    {
+        { "default", defaultProcessor },
+        { "fallback", fallbackProcessor }
+    };
+    return new HealthCheckService(httpClientFactory, processorUrls);
+});
+builder.Services.AddScoped<IPaymentSummaryService>(provider =>
+{
+    var redis = provider.GetRequiredService<IConnectionMultiplexer>();
+    var logger = provider.GetRequiredService<ILogger<PaymentSummaryService>>();
+    return new PaymentSummaryService(redis, logger);
+});
 
 var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
 redisConfig.AbortOnConnectFail = false;
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfig));
 
-builder.Services.AddSingleton<IPaymentService>(provider =>
+builder.Services.AddScoped<IPaymentService>(provider =>
 {
     var summaryService = provider.GetRequiredService<IPaymentSummaryService>();
     var healthCheckService = provider.GetRequiredService<IHealthCheckService>();
@@ -47,7 +62,14 @@ builder.Services.AddSingleton<IPaymentService>(provider =>
 });
 
 var app = builder.Build();
-app.UseHttpsRedirection();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();
