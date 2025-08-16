@@ -1,11 +1,8 @@
 ﻿services:
   backend1: &backend-service
-    image: rinhadebackend2025
+    image: goulart12/rinhadebackend2025:2025.2
     container_name: backend1
     hostname: backend1
-    build:
-      context: .
-      dockerfile: RinhaDeBackend2025/Dockerfile
     expose:
       - "8080"
     ports:
