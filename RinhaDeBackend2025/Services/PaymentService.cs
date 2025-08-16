@@ -36,7 +36,7 @@ public class PaymentService : IPaymentService
         {
             correlationId = paymentModel.CorrelationId,
             amount = paymentModel.Amount,
-            requestedAt = DateTime.Now,
+            requestedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
         };
         
         var processorCheck = await _healthyHealthCheckService.IsHealthy("default");
@@ -44,12 +44,10 @@ public class PaymentService : IPaymentService
 
         if (processorCheck)
         {
-            _logger.LogInformation("Attempting payment with default processor.");
             var response = await DefaultProcessPaymentAsync(paymentData);
     
             if (!response)
             {
-                _logger.LogWarning("Default processor failed. Attempting fallback processor.");
                 var fallbackResponse = await FallbackProcessPaymentAsync(paymentData);
     
                 if (!fallbackResponse)
@@ -67,13 +65,11 @@ public class PaymentService : IPaymentService
             return true;
         }
         
-        _logger.LogWarning("Default processor is not healthy. Checking fallback processor.");
         var fallbackCheck = await _healthyHealthCheckService.IsHealthy("fallback");
         _logger.LogInformation("Fallback processor health check result: {Status}", fallbackCheck);
 
         if (fallbackCheck)
         {
-            _logger.LogInformation("Attempting payment with fallback processor.");
             var fallbackResponse = await FallbackProcessPaymentAsync(paymentData);
 
             if (fallbackResponse)
@@ -96,14 +92,7 @@ public class PaymentService : IPaymentService
         
         var response = await httpClient.PostAsync($"{_defaultProcessor}/payments", content);
 
-        if (response.IsSuccessStatusCode)
-        {
-            _logger.LogInformation("Successfully processed payment with default processor.");
-            return true;
-        }
-        
-        _logger.LogWarning("Failed to process payment with default processor. Status code: {StatusCode}", response.StatusCode);
-        return false;
+        return response.IsSuccessStatusCode;
     }
 
     private async Task<bool> FallbackProcessPaymentAsync(object paymentData)
@@ -114,13 +103,6 @@ public class PaymentService : IPaymentService
         
         var response = await httpClient.PostAsync($"{_fallbackProcessor}/payments", content);
 
-        if (response.IsSuccessStatusCode)
-        {
-            _logger.LogInformation("Successfully processed payment with fallback processor.");
-            return true;
-        }
-        
-        _logger.LogWarning("Failed to process payment with fallback processor. Status code: {StatusCode}", response.StatusCode);
-        return false;
+        return response.IsSuccessStatusCode;
     }
 }

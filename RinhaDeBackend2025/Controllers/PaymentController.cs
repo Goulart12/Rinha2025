@@ -24,10 +24,8 @@ public class PaymentController : ControllerBase
     [Route("payments")]
     public IActionResult Payment([FromBody] PaymentModel model)
     {
-        _logger.LogInformation("Enqueuing payment request for CorrelationId: {CorrelationId}", model.CorrelationId);
         _taskQueue.Enqueue(model);
-        // return Accepted(new { message = "payment received and queued for processing" });
-        return Ok(new { message =  "payment processed successfully" });
+        return Accepted(new { message = "payment received and queued for processing" });
     }
 
     [HttpGet]

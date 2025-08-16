@@ -40,7 +40,7 @@ public class PaymentSummaryService : IPaymentSummaryService
             catch (JsonException ex)
             {
                 _logger.LogError(ex, "Failed to deserialize Redis entry. Value: {entry}", (string)entry);
-                // Decide if you want to continue or re-throw. For now, we'll just log and continue.
+                throw new Exception("Failed to deserialize Redis entry. Value: {entry}", ex);
             }
         }
         
@@ -67,6 +67,7 @@ public class PaymentSummaryService : IPaymentSummaryService
         catch (JsonException ex)
         {
            _logger.LogError(ex, "Failed to insert Redis entry. Value: {json}", json);
+           throw new Exception("Failed to insert Redis entry. Value: {json}", ex);
         }
     }
 }

@@ -28,8 +28,7 @@ public class QueuedHostedService : BackgroundService
             try
             {
                 var paymentModel = await _taskQueue.DequeueAsync(stoppingToken);
-
-                // Create a new scope to resolve scoped services.
+                
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();

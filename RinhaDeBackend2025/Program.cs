@@ -26,8 +26,6 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<SecurityRequirementsOperationFilter>();
 });
 
-// builder.Services.AddHttpClient("default", client => client.BaseAddress = new Uri("http://payment-processor-default:8080"));                
-// builder.Services.AddHttpClient("fallback", client => client.BaseAddress = new Uri("http://payment-processor-fallback:8080"));
 builder.Services.AddHttpClient();
 
 builder.Services.AddSingleton(typeof(IBackgroundTaskQueue<>), typeof(BackgroundTaskQueue<>));
@@ -63,8 +61,6 @@ builder.Services.AddScoped<IPaymentService>(provider =>
     return new PaymentService(defaultProcessor, fallbackProcessor, summaryService, healthCheckService, logger, httpClientFactory);
 });
 
-
-
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -75,20 +71,5 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthorization();
 app.MapControllers();
-
-app.MapGet("/", async (IHealthCheckService healthCheck) =>
-{
-    var defaultProccessorStatus = await healthCheck.IsHealthy("default");
-    var fallbackProccessorStatus = await healthCheck.IsHealthy("fallback");
-    return new
-    {
-        message = "o pai ta on",
-        database = new
-        {
-            defaultProccessorStatus,
-            fallbackProccessorStatus
-        }
-    };
-});
 
 app.Run();
