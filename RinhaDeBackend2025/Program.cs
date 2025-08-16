@@ -30,6 +30,9 @@ builder.Services.AddSwaggerGen(options =>
 // builder.Services.AddHttpClient("fallback", client => client.BaseAddress = new Uri("http://payment-processor-fallback:8080"));
 builder.Services.AddHttpClient();
 
+builder.Services.AddSingleton(typeof(IBackgroundTaskQueue<>), typeof(BackgroundTaskQueue<>));
+builder.Services.AddHostedService<QueuedHostedService>();
+
 builder.Services.AddSingleton<IHealthCheckService>(provider =>
 {
     var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();

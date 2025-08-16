@@ -6,31 +6,28 @@ namespace RinhaDeBackend2025.Controllers;
 
 public class PaymentController : ControllerBase
 {
-    private readonly IPaymentService _paymentService;
+    private readonly IBackgroundTaskQueue<PaymentModel> _taskQueue;
     private readonly IPaymentSummaryService _paymentSummaryService;
     private readonly ILogger<PaymentController> _logger;
 
-    public PaymentController(IPaymentService paymentService, IPaymentSummaryService paymentSummaryService, ILogger<PaymentController> logger)
+    public PaymentController(
+        IBackgroundTaskQueue<PaymentModel> taskQueue,
+        IPaymentSummaryService paymentSummaryService,
+        ILogger<PaymentController> logger)
     {
-        _paymentService = paymentService;
+        _taskQueue = taskQueue;
         _paymentSummaryService = paymentSummaryService;
         _logger = logger;
     }
 
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status200OK)]
     [Route("payments")]
-    public async Task<IActionResult> Payment([FromBody] PaymentModel model)
+    public IActionResult Payment([FromBody] PaymentModel model)
     {
-        _logger.LogInformation("PaymentController: Received payment request for CorrelationId: {CorrelationId}", model.CorrelationId);
-        var result = await _paymentService.ProcessPaymentAsync(model);
-
-        if (result)
-        {
-            return Ok(new { message = "payment processed successfully" });
-        }
-
-        return StatusCode(502, new { message = "processor failed" });
+        _logger.LogInformation("Enqueuing payment request for CorrelationId: {CorrelationId}", model.CorrelationId);
+        _taskQueue.Enqueue(model);
+        // return Accepted(new { message = "payment received and queued for processing" });
+        return Ok(new { message =  "payment processed successfully" });
     }
 
     [HttpGet]
