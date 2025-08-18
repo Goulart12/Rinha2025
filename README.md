@@ -80,3 +80,7 @@ A aplicação é composta por múltiplos serviços orquestrados via Docker Compo
         }
     }
     ```
+
+## Repositório da Rinha feito por [zanfranceschi](https://github.com/zanfranceschi).
+
+[Rinha de backend](https://github.com/zanfranceschi/rinha-de-backend-2025)
