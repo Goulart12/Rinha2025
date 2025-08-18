@@ -6,4 +6,5 @@ public interface IPaymentSummaryService
 {
     Task<List<PaymentSummaryEntry>> GetSummaryAsync(DateTime from, DateTime to);
     Task InsertSummaryAsync(string processor, decimal amount);
+    Task<bool> AlreadyExists(Guid correlationId);
 }

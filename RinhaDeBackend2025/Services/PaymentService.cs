@@ -31,6 +31,8 @@ public class PaymentService : IPaymentService
 
     public async Task<bool> ProcessPaymentAsync(PaymentModel paymentModel)
     {
+        if (await _summaryService.AlreadyExists(paymentModel.CorrelationId)) return false;
+        
         _logger.LogInformation("Starting payment process for CorrelationId: {CorrelationId}", paymentModel.CorrelationId);
         var paymentData = new
         {

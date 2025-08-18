@@ -70,4 +70,18 @@ public class PaymentSummaryService : IPaymentSummaryService
            throw new Exception("Failed to insert Redis entry. Value: {json}", ex);
         }
     }
+
+    public async Task<bool> AlreadyExists(Guid correlationId)
+    {
+        if (correlationId == Guid.Empty)
+            return false;
+
+        var key = $"correlation:{correlationId}";
+        bool inserted = await _redisDatabase.StringSetAsync(
+            key,
+            "1",
+            expiry: TimeSpan.FromMinutes(5),
+            when: When.NotExists);
+        return !inserted;
+    }
 }
