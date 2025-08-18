@@ -1,4 +1,4 @@
-# RinhaDeBackend2025
+# Rinha De Backend 2025
 
 Este projeto é uma implementação para a Rinha de Backend de 2025, focando em uma arquitetura assíncrona para processamento de pagamentos.
 
